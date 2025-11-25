@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'Ping Pong',
-  description: 'Simple ping pong app',
+  title: 'Same Word',
+  description: 'Same Word game',
 }
 
 export default function RootLayout({

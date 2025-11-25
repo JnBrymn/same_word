@@ -108,6 +108,10 @@ def start_game(game_id: str, player_id: str, rounds_per_player: int) -> Tuple[bo
     if rounds_per_player < 1:
         return False, "Rounds per player must be at least 1"
     
+    # Validate minimum players
+    if len(game.players) < 3:
+        return False, "At least 3 players are required to start the game"
+    
     # Start the game
     game.status = "playing"
     game.rounds_per_player = rounds_per_player

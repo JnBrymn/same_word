@@ -274,12 +274,12 @@ function WaitingRoomContent() {
           </div>
           <button
             onClick={handleStartGame}
-            disabled={loading || gameState.players.length < 2}
+            disabled={loading || gameState.players.length < 3}
             style={{
               padding: '12px 24px',
               fontSize: '16px',
-              cursor: (loading || gameState.players.length < 2) ? 'not-allowed' : 'pointer',
-              backgroundColor: gameState.players.length < 2 ? '#ccc' : '#4CAF50',
+              cursor: (loading || gameState.players.length < 3) ? 'not-allowed' : 'pointer',
+              backgroundColor: gameState.players.length < 3 ? '#ccc' : '#4CAF50',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
@@ -287,15 +287,15 @@ function WaitingRoomContent() {
               width: '100%'
             }}
           >
-            {gameState.players.length < 2 
+            {gameState.players.length < 3 
               ? 'Waiting for more players...' 
               : loading 
                 ? 'Starting...' 
                 : 'Start Game'}
           </button>
-          {gameState.players.length < 2 && (
+          {gameState.players.length < 3 && (
             <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
-              At least 2 players are needed to start the game.
+              At least 3 players are needed to start the game.
             </p>
           )}
         </div>
