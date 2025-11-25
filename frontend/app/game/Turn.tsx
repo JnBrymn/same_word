@@ -201,21 +201,15 @@ export default function Turn({
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', minWidth: '80px' }}>
-                  {delta !== null && (
+                  {turn.scores && turn.scores[player.player_id] !== undefined ? (
                     <div style={{
-                      fontSize: '12px',
+                      fontSize: '20px',
                       fontWeight: 'bold',
-                      color: delta > 0 ? '#4CAF50' : delta < 0 ? '#c62828' : '#666',
-                      marginBottom: '2px'
+                      color: turn.scores[player.player_id] > 0 ? '#4CAF50' : turn.scores[player.player_id] < 0 ? '#c62828' : '#666'
                     }}>
-                      {delta > 0 ? '+' : ''}{delta}
+                      {turn.scores[player.player_id] > 0 ? '+' : ''}{turn.scores[player.player_id]}
                     </div>
-                  )}
-                  {score !== null && (
-                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
-                      {previousScore + (delta || 0)}
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             )
