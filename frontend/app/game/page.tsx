@@ -506,7 +506,7 @@ function GameContent() {
   const isMyTurn = currentQuestioner?.player_id === playerId
   const currentTurn = gameState.current_turn
   const phase = currentTurn?.phase || 'question'
-  const hasAnswered = currentTurn?.answers && playerId && playerId in currentTurn.answers
+  const hasAnswered = !!(currentTurn?.answers && playerId && playerId in currentTurn.answers)
   const myAnswer = hasAnswered && currentTurn.answers ? currentTurn.answers[playerId] : null
 
   // Count how many players have answered
