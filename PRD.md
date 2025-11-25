@@ -1,18 +1,71 @@
-1. Make a website - front end, back end, deployed to fly.io
-2. Make actual game
+# Same Word - Product Requirements Document
 
+## Overview
+Same Word is a multiplayer word game where players take turns asking questions, and everyone (including the questioner) provides single-word answers. Points are awarded based on matching answers.
 
-a) Find a game - You go to the home page and you type in an agreed upon password and anyone else that has that password is automatically thrown into the same game. 
-b) 
+## Website Structure
 
+### 1. Find a Game Page (Home Page)
 
+Players can join an existing game or create a new one.
 
-Turn
-i) whoever's turn it is, is going to write a sentence in the blank. Everyone gets to see it. 
-ii) and then everyone writes their word in the blank. 
-iii) Scoring happens And And if any person has the same word as other people, then they get one point for every other person that has that same word. and if the person that asked the question is, has the same word, then they get an extra point. And if they asked a question that no one has a green words on or or everyone has a green word zone, then it's counted as a dud question. and the person asking the question gets a minus one point. 
-iv) the whole game we iterate through the players in the same order and the game can only end when we've iterated through all the players X times - They get to pick the value of X. 
+**Fields:**
+- Your Name: [___________]
+- Join a game: [___________] [GO]
+- Create new game: [___________] [GO]
 
+**Behavior:**
+- Game names must match exactly (only lower case allowed)
+- Player names for a particular game must be unique (when lowercased) Otherwise, it makes you re-enter your name. 
+- After clicking "GO", players proceed to the waiting room
 
+---
 
+### 2. Waiting Room
 
+**For all players:**
+- Displays the number of people who have joined the game
+- Shows the names of all players currently in the game
+
+**For game creator:**
+- Same information as above
+- Number of rounds input
+- Additional "Start Game" button to begin the game
+
+**For non-creators:**
+- Wait and watch as other players join
+- No action buttons available
+
+---
+
+### 3. Game Page
+
+#### Game Flow
+
+**Turn Structure:**
+
+1. **Question Phase**
+   - The current player (whose turn it is) types a question
+   - Everyone sees the question
+
+2. **Answer Phase**
+   - Everyone (including the questioner) types a single word answer in their input box
+   - Once all players have submitted their word, the answers are revealed simultaneously
+
+3. **Scoring Phase**
+   - Scores are calculated automatically based on matching words
+
+#### Scoring Rules
+
+- **Matching with other players:** If your word matches with any other player, you get 1 point per player that it matches with
+- **Matching with questioner:** If your word also matches with the person who asked the question, you get an additional 1 point
+- **Dud question penalty:** If the questioner asks a question where:
+  - No one has the same word (no matches), OR
+  - Everyone has the same word (all matches)
+  - Then it's a "dud question": no one gets any points, and the questioner loses 1 point
+
+#### Game End
+
+- Players take turns asking questions in the same order
+- The game ends after all players have asked questions X times
+- Players choose the value of X at the start of the game
