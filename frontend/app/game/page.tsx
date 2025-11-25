@@ -393,6 +393,7 @@ function GameContent() {
     const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score)
     const maxScore = sortedPlayers[0]?.score
     const winners = sortedPlayers.filter(p => p.score === maxScore)
+    const reversedTurns = gameState.all_turns ? [...gameState.all_turns].reverse() : []
 
     return (
       <main style={{ 
@@ -419,6 +420,7 @@ function GameContent() {
           Game: {gameState.game_name}
         </h2>
 
+        {/* Final Scores */}
         <div style={{
           backgroundColor: '#f5f5f5',
           padding: '30px',
@@ -452,6 +454,30 @@ function GameContent() {
             ))}
           </ul>
         </div>
+
+        {/* Turn History - Show all turns so players can review */}
+        {reversedTurns.length > 0 && (
+          <div style={{ marginBottom: '30px' }}>
+            <h2 style={{ marginBottom: '20px', color: '#666' }}>Game History</h2>
+            <p style={{ marginBottom: '20px', color: '#999', fontSize: '14px', fontStyle: 'italic' }}>
+              Scroll through to see how the game evolved
+            </p>
+            {reversedTurns.map((turn) => {
+              const scoresBefore = turnScoresBefore[turn.turn_id] || {}
+              
+              return (
+                <Turn
+                  key={turn.turn_id}
+                  turn={turn}
+                  players={gameState.players}
+                  currentPlayerId={playerId}
+                  previousScores={scoresBefore}
+                  isCurrentTurn={false}
+                />
+              )
+            })}
+          </div>
+        )}
 
         <button
           onClick={() => router.push('/')}
