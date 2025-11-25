@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 interface Player {
@@ -21,7 +21,7 @@ interface GameState {
   current_round: number
 }
 
-export default function WaitingRoom() {
+function WaitingRoomContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const gameId = searchParams.get('game_id')
@@ -254,6 +254,18 @@ export default function WaitingRoom() {
         </div>
       )}
     </main>
+  )
+}
+
+export default function WaitingRoom() {
+  return (
+    <Suspense fallback={
+      <main style={{ padding: '50px', fontFamily: 'Arial, sans-serif', textAlign: 'center' }}>
+        <h1>Loading...</h1>
+      </main>
+    }>
+      <WaitingRoomContent />
+    </Suspense>
   )
 }
 

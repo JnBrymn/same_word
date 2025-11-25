@@ -69,3 +69,15 @@ Players can join an existing game or create a new one.
 - Players take turns asking questions in the same order
 - The game ends after all players have asked questions X times
 - Players choose the value of X at the start of the game
+
+--- 
+
+# Next Steps
+- Make sure we can see everyone's answer.
+  - when people answer, show that they have answered but blank out their answer under their name
+- When someone is typing, we indicate it.
+- It's annoying to be wrong just because you spelled it differently
+- When people are playing it says "1/N have answered" but that never updates
+- use AI to figure out if the answers are "close enough"
+- when the scoring is calculated, show the deltas as green and red above the score
+- final score fireworks

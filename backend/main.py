@@ -7,12 +7,22 @@ app = FastAPI()
 
 import os
 
+# Get allowed origins from environment or use defaults
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+allowed_origins = [
+    "http://localhost:3000",
+    frontend_url,
+]
+
+# Add Fly.io domain if FLY_APP_NAME is set (production)
+fly_app_name = os.getenv("FLY_APP_NAME")
+if fly_app_name:
+    allowed_origins.append(f"https://{fly_app_name}.fly.dev")
+    allowed_origins.append(f"http://{fly_app_name}.fly.dev")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        os.getenv("FRONTEND_URL", "http://localhost:3000"),
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

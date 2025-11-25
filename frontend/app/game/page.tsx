@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 interface Player {
@@ -32,7 +32,7 @@ interface GameState {
   current_turn: TurnInfo | null
 }
 
-export default function Game() {
+function GameContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const gameId = searchParams.get('game_id')
@@ -486,6 +486,7 @@ export default function Game() {
             <h4 style={{ marginBottom: '10px' }}>Answers:</h4>
             {Object.entries(currentTurn.answers).map(([pid, word]) => {
               const player = gameState.players.find(p => p.player_id === pid)
+              const score = currentTurn.scores?.[pid] ?? 0
               return (
                 <div
                   key={pid}
@@ -504,9 +505,9 @@ export default function Game() {
                   </span>
                   <span style={{
                     fontWeight: 'bold',
-                    color: (currentTurn.scores[pid] || 0) > 0 ? '#4CAF50' : (currentTurn.scores[pid] || 0) < 0 ? '#c62828' : '#666'
+                    color: score > 0 ? '#4CAF50' : score < 0 ? '#c62828' : '#666'
                   }}>
-                    {currentTurn.scores[pid] > 0 ? '+' : ''}{currentTurn.scores[pid]} points
+                    {score > 0 ? '+' : ''}{score} points
                   </span>
                 </div>
               )
@@ -523,12 +524,12 @@ export default function Game() {
             <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
               Turn Complete!
             </p>
-            {currentTurn.scores[playerId || ''] !== undefined && (
+            {currentTurn.scores && currentTurn.scores[playerId || ''] !== undefined && (
               <p style={{ margin: '10px 0 0 0', fontSize: '16px' }}>
                 You earned: <strong style={{
-                  color: (currentTurn.scores[playerId || ''] || 0) > 0 ? '#4CAF50' : (currentTurn.scores[playerId || ''] || 0) < 0 ? '#c62828' : '#666'
+                  color: ((currentTurn.scores[playerId || ''] ?? 0) > 0) ? '#4CAF50' : ((currentTurn.scores[playerId || ''] ?? 0) < 0) ? '#c62828' : '#666'
                 }}>
-                  {currentTurn.scores[playerId || ''] > 0 ? '+' : ''}{currentTurn.scores[playerId || '']} points
+                  {(currentTurn.scores[playerId || ''] ?? 0) > 0 ? '+' : ''}{currentTurn.scores[playerId || '']} points
                 </strong>
               </p>
             )}
@@ -556,5 +557,17 @@ export default function Game() {
         </div>
       )}
     </main>
+  )
+}
+
+export default function Game() {
+  return (
+    <Suspense fallback={
+      <main style={{ padding: '50px', fontFamily: 'Arial, sans-serif', textAlign: 'center' }}>
+        <h1>Loading...</h1>
+      </main>
+    }>
+      <GameContent />
+    </Suspense>
   )
 }
