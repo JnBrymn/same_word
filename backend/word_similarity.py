@@ -1,18 +1,9 @@
 """
 Word similarity checking for matching answers that are "close enough".
-Uses string similarity and optionally AI for semantic matching.
+Uses exact matching or AI for semantic matching.
 """
 from typing import List, Dict, Set
-from difflib import SequenceMatcher
 import os
-
-
-def string_similarity(word1: str, word2: str) -> float:
-    """
-    Calculate string similarity between two words (0.0 to 1.0).
-    Uses SequenceMatcher for fuzzy matching.
-    """
-    return SequenceMatcher(None, word1.lower(), word2.lower()).ratio()
 
 
 def are_words_similar(word1: str, word2: str, threshold: float = 0.85) -> bool:
@@ -22,18 +13,13 @@ def are_words_similar(word1: str, word2: str, threshold: float = 0.85) -> bool:
     Args:
         word1: First word
         word2: Second word
-        threshold: Similarity threshold (0.0 to 1.0). Default 0.85 means 85% similar.
+        threshold: Unused, kept for compatibility
     
     Returns:
         True if words are similar enough, False otherwise
     """
     # Exact match (case-insensitive)
     if word1.lower() == word2.lower():
-        return True
-    
-    # Check string similarity
-    similarity = string_similarity(word1, word2)
-    if similarity >= threshold:
         return True
     
     # Check with AI if available
@@ -56,7 +42,7 @@ def check_semantic_similarity(word1: str, word2: str) -> bool:
         client = openai.OpenAI(api_key=openai_api_key)
         
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5-nano-2025-08-07",
             messages=[
                 {
                     "role": "system",

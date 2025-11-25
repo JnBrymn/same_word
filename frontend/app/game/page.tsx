@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import TurnHistory from './TurnHistory'
+import Turn from './Turn'
 
 interface Player {
   name: string
@@ -49,7 +49,7 @@ function GameContent() {
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
   const [previousScores, setPreviousScores] = useState<{ [player_id: string]: number }>({})
   const [turnScoresBefore, setTurnScoresBefore] = useState<{ [turn_id: string]: { [player_id: string]: number } }>({})
-  const turnHistoryRef = useRef<HTMLDivElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
 
@@ -107,13 +107,13 @@ function GameContent() {
           triggerFireworks()
         }
         
-        // Auto-scroll to bottom when new turn appears or on initial load
+        // Auto-scroll to top when new turn appears
         if (data.all_turns) {
           const shouldScroll = !gameState?.all_turns || data.all_turns.length > gameState.all_turns.length
           if (shouldScroll) {
             setTimeout(() => {
-              if (turnHistoryRef.current) {
-                turnHistoryRef.current.scrollTop = turnHistoryRef.current.scrollHeight
+              if (mainRef.current) {
+                window.scrollTo({ top: 0, behavior: 'smooth' })
               }
             }, 100)
           }
@@ -137,13 +137,11 @@ function GameContent() {
     }
   }, [gameId, playerId, router, apiUrl, gameState])
 
-  // Scroll to bottom on initial load
+  // Scroll to top on initial load
   useEffect(() => {
-    if (gameState?.all_turns && turnHistoryRef.current) {
+    if (gameState?.all_turns) {
       setTimeout(() => {
-        if (turnHistoryRef.current) {
-          turnHistoryRef.current.scrollTop = turnHistoryRef.current.scrollHeight
-        }
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       }, 200)
     }
   }, [gameState?.all_turns?.length])
@@ -489,8 +487,11 @@ function GameContent() {
   const answeredCount = currentTurn?.answers ? Object.keys(currentTurn.answers).length : 0
   const totalPlayers = gameState.players.length
 
+  // Reverse turns to show newest first
+  const reversedTurns = gameState.all_turns ? [...gameState.all_turns].reverse() : []
+
   return (
-    <main style={{ 
+    <main ref={mainRef} style={{ 
       padding: '50px', 
       fontFamily: 'Arial, sans-serif',
       maxWidth: '800px',
@@ -513,7 +514,7 @@ function GameContent() {
         </div>
       )}
 
-      {/* Scores */}
+      {/* Scores - At the very top */}
       <div style={{
         backgroundColor: '#f5f5f5',
         padding: '20px',
@@ -523,12 +524,6 @@ function GameContent() {
         <h3 style={{ marginBottom: '15px' }}>Scores</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
           {gameState.players.map((player) => {
-            // Calculate delta if we're in scoring phase and have previous scores
-            const showDelta = (phase === 'scoring' || currentTurn?.is_complete) && 
-                             previousScores[player.player_id] !== undefined &&
-                             currentTurn?.scores
-            const delta = showDelta ? (player.score - previousScores[player.player_id]) : null
-            
             return (
               <div
                 key={player.player_id}
@@ -541,16 +536,6 @@ function GameContent() {
                 }}
               >
                 <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{player.name}</div>
-                {delta !== null && delta !== 0 && (
-                  <div style={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    color: delta > 0 ? '#4CAF50' : '#c62828',
-                    marginBottom: '4px'
-                  }}>
-                    {delta > 0 ? '+' : ''}{delta}
-                  </div>
-                )}
                 <div style={{ fontSize: '20px' }}>{player.score}</div>
               </div>
             )
@@ -558,185 +543,45 @@ function GameContent() {
         </div>
       </div>
 
-      {/* Question Phase */}
+      {/* Question Phase - Show at top if no current turn */}
       {(!currentTurn || phase === 'question') && (
-        <div style={{
-          backgroundColor: '#e3f2fd',
-          padding: '30px',
-          borderRadius: '8px',
-          marginBottom: '30px'
-        }}>
-          {isMyTurn ? (
-            <>
-              <h3 style={{ marginBottom: '15px' }}>It's your turn to ask a question!</h3>
-              <div style={{ marginBottom: '15px' }}>
-                <input
-                  type="text"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !loading && handleSubmitQuestion()}
-                  placeholder="Enter your question..."
-                  disabled={loading}
-                  style={{
-                    padding: '12px',
-                    fontSize: '16px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px'
-                  }}
-                />
-              </div>
-              <button
-                onClick={handleSubmitQuestion}
-                disabled={loading || !question.trim()}
-                style={{
-                  padding: '12px 24px',
-                  fontSize: '16px',
-                  cursor: (loading || !question.trim()) ? 'not-allowed' : 'pointer',
-                  backgroundColor: (loading || !question.trim()) ? '#ccc' : '#4CAF50',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontWeight: 'bold',
-                  width: '100%'
-                }}
-              >
-                {loading ? 'Submitting...' : 'Submit Question'}
-              </button>
-            </>
-          ) : (
-            <div style={{ textAlign: 'center' }}>
-              <h3>Waiting for {currentQuestioner?.name} to ask a question...</h3>
-            </div>
-          )}
-        </div>
+        <Turn
+          turn={null}
+          players={gameState.players}
+          currentPlayerId={playerId}
+          previousScores={{}}
+          isCurrentTurn={true}
+          isQuestionPhase={true}
+          currentQuestioner={currentQuestioner}
+          onQuestionSubmit={handleSubmitQuestion}
+          question={question}
+          onQuestionChange={setQuestion}
+          loading={loading}
+        />
       )}
 
-      {/* Turn History */}
-      <div style={{
-        backgroundColor: '#f9f9f9',
-        padding: '20px',
-        borderRadius: '8px',
-        marginBottom: '30px',
-        maxHeight: '500px',
-        overflowY: 'auto',
-        border: '1px solid #e0e0e0',
-        scrollBehavior: 'smooth'
-      }} ref={turnHistoryRef}>
-        <h3 style={{ 
-          marginBottom: '15px', 
-          position: 'sticky', 
-          top: 0, 
-          backgroundColor: '#f9f9f9', 
-          zIndex: 10,
-          paddingBottom: '10px',
-          borderBottom: '2px solid #e0e0e0'
-        }}>
-          Turn History
-        </h3>
-        {gameState.all_turns && gameState.all_turns.length > 0 ? (
-          gameState.all_turns.map((turn, index) => {
-            const isCurrentTurn = turn.turn_id === currentTurn?.turn_id
-            const scoresBefore = turnScoresBefore[turn.turn_id] || {}
-            
-            return (
-              <TurnHistory
-                key={turn.turn_id}
-                turn={turn}
-                players={gameState.players}
-                currentPlayerId={playerId}
-                previousScores={scoresBefore}
-                isCurrentTurn={isCurrentTurn}
-              />
-            )
-          })
-        ) : (
-          <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
-            No turns yet. Waiting for the first question...
-          </div>
-        )}
-      </div>
-
-      {/* Answer Input - Only show for current turn in answer phase */}
-      {currentTurn && phase === 'answer' && currentTurn.question && !hasAnswered && (
-        <div style={{
-          backgroundColor: '#fff3e0',
-          padding: '30px',
-          borderRadius: '8px',
-          marginBottom: '30px'
-        }}>
-          <h3 style={{ marginBottom: '15px', textAlign: 'center' }}>
-            Enter your answer:
-          </h3>
-          <div style={{ marginBottom: '15px' }}>
-            <input
-              type="text"
-              value={answer}
-              onChange={handleAnswerChange}
-              onKeyPress={(e) => e.key === 'Enter' && !loading && handleSubmitAnswer()}
-              placeholder="Enter a single word answer..."
-              disabled={loading}
-              style={{
-                padding: '12px',
-                fontSize: '16px',
-                width: '100%',
-                boxSizing: 'border-box',
-                border: '1px solid #ccc',
-                borderRadius: '4px'
-              }}
-            />
-          </div>
-          <button
-            onClick={handleSubmitAnswer}
-            disabled={loading || !answer.trim()}
-            style={{
-              padding: '12px 24px',
-              fontSize: '16px',
-              cursor: (loading || !answer.trim()) ? 'not-allowed' : 'pointer',
-              backgroundColor: (loading || !answer.trim()) ? '#ccc' : '#FF9800',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontWeight: 'bold',
-              width: '100%'
-            }}
-          >
-            {loading ? 'Submitting...' : 'Submit Answer'}
-          </button>
-        </div>
-      )}
-
-      {/* Next Turn Button - Only show when current turn is complete */}
-      {currentTurn && (phase === 'scoring' || currentTurn.is_complete) && gameState.status === 'playing' && (
-        <div style={{
-          backgroundColor: '#e8f5e9',
-          padding: '20px',
-          borderRadius: '8px',
-          marginBottom: '30px',
-          textAlign: 'center'
-        }}>
-          <p style={{ marginBottom: '15px', fontSize: '16px', fontWeight: 'bold' }}>
-            Turn Complete!
-          </p>
-          <button
-            onClick={handleStartNextTurn}
-            disabled={loading}
-            style={{
-              padding: '12px 24px',
-              fontSize: '16px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              backgroundColor: loading ? '#ccc' : '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontWeight: 'bold'
-            }}
-          >
-            {loading ? 'Starting...' : 'Next Turn'}
-          </button>
-        </div>
-      )}
+      {/* All Turns - Newest at top */}
+      {reversedTurns.map((turn) => {
+        const isCurrentTurnItem = turn.turn_id === currentTurn?.turn_id
+        const scoresBefore = turnScoresBefore[turn.turn_id] || {}
+        
+        return (
+          <Turn
+            key={turn.turn_id}
+            turn={turn}
+            players={gameState.players}
+            currentPlayerId={playerId}
+            previousScores={scoresBefore}
+            isCurrentTurn={isCurrentTurnItem}
+            onAnswerSubmit={handleSubmitAnswer}
+            answer={answer}
+            onAnswerChange={setAnswer}
+            hasAnswered={hasAnswered}
+            loading={loading}
+            onNextTurn={gameState.status === 'playing' ? handleStartNextTurn : undefined}
+          />
+        )
+      })}
     </main>
   )
 }
