@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict
 
 app = FastAPI()
 
@@ -52,6 +52,15 @@ class PlayerInfo(BaseModel):
     score: int
     is_creator: bool
 
+class TurnInfo(BaseModel):
+    turn_id: str
+    questioner_id: str
+    question: Optional[str] = None
+    phase: str  # question, answer, scoring
+    is_complete: bool
+    answers: Optional[Dict[str, str]] = None  # player_id -> word (only shown if phase is scoring or player has answered)
+    scores: Optional[Dict[str, int]] = None  # player_id -> points (only shown if phase is scoring)
+
 class GameStateResponse(BaseModel):
     game_id: str
     game_name: str
@@ -61,6 +70,22 @@ class GameStateResponse(BaseModel):
     rounds_per_player: Optional[int] = None
     current_turn_index: Optional[int] = None
     current_round: int = 0
+    current_turn: Optional[TurnInfo] = None
+
+class QuestionRequest(BaseModel):
+    player_id: str
+    question: str
+
+class AnswerRequest(BaseModel):
+    player_id: str
+    word: str
+
+class StartTurnRequest(BaseModel):
+    player_id: Optional[str] = None
+
+class ActionResponse(BaseModel):
+    success: bool
+    error: Optional[str] = None
 
 @app.get("/ping")
 def ping():
@@ -127,10 +152,10 @@ def join_game(request: JoinGameRequest):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/api/games/{game_id}", response_model=GameStateResponse)
-def get_game_state(game_id: str):
+def get_game_state(game_id: str, player_id: Optional[str] = None):
     """Get current game state."""
     try:
-        from game_store import get_game
+        from game_store import get_game, get_current_turn
         game = get_game(game_id)
         
         if not game:
@@ -147,6 +172,35 @@ def get_game_state(game_id: str):
             for player in game.players
         ]
         
+        # Get turn information
+        turn_info = None
+        if game.current_turn_id:
+            turn = get_current_turn(game_id)
+            if turn:
+                # Determine what answers to show
+                answers_to_show = None
+                if turn.phase == "scoring" or turn.is_complete:
+                    # Show all answers
+                    answers_to_show = turn.answers
+                elif turn.phase == "answer" and player_id:
+                    # Show only if this player has answered
+                    if player_id in turn.answers:
+                        answers_to_show = {player_id: turn.answers[player_id]}
+                
+                scores_to_show = None
+                if turn.phase == "scoring" or turn.is_complete:
+                    scores_to_show = turn.scores
+                
+                turn_info = TurnInfo(
+                    turn_id=turn.turn_id,
+                    questioner_id=turn.questioner_id,
+                    question=turn.question,
+                    phase=turn.phase,
+                    is_complete=turn.is_complete,
+                    answers=answers_to_show,
+                    scores=scores_to_show
+                )
+        
         return GameStateResponse(
             game_id=game.game_id,
             game_name=game.game_name,
@@ -155,7 +209,8 @@ def get_game_state(game_id: str):
             status=game.status,
             rounds_per_player=game.rounds_per_player,
             current_turn_index=game.current_turn_index,
-            current_round=game.current_round
+            current_round=game.current_round,
+            current_turn=turn_info
         )
     except HTTPException:
         raise
@@ -173,6 +228,48 @@ def start_game(game_id: str, request: StartGameRequest):
             return StartGameResponse(success=False, error=error)
         
         return StartGameResponse(success=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/api/games/{game_id}/start-turn", response_model=ActionResponse)
+def start_turn_endpoint(game_id: str, request: StartTurnRequest):
+    """Start a new turn."""
+    try:
+        from game_manager import start_turn
+        turn, error = start_turn(game_id)
+        
+        if error:
+            return ActionResponse(success=False, error=error)
+        
+        return ActionResponse(success=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/api/games/{game_id}/question", response_model=ActionResponse)
+def submit_question_endpoint(game_id: str, request: QuestionRequest):
+    """Submit a question for the current turn."""
+    try:
+        from game_manager import submit_question
+        success, error = submit_question(game_id, request.player_id, request.question)
+        
+        if not success:
+            return ActionResponse(success=False, error=error)
+        
+        return ActionResponse(success=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/api/games/{game_id}/answer", response_model=ActionResponse)
+def submit_answer_endpoint(game_id: str, request: AnswerRequest):
+    """Submit an answer for the current turn."""
+    try:
+        from game_manager import submit_answer
+        success, error = submit_answer(game_id, request.player_id, request.word)
+        
+        if not success:
+            return ActionResponse(success=False, error=error)
+        
+        return ActionResponse(success=True)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 

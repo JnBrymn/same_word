@@ -16,6 +16,22 @@ class Player:
 
 
 @dataclass
+class Turn:
+    turn_id: str
+    game_id: str
+    questioner_id: str
+    question: Optional[str] = None
+    answers: dict[str, str] = field(default_factory=dict)  # player_id -> word (lowercase)
+    scores: dict[str, int] = field(default_factory=dict)  # player_id -> points
+    is_complete: bool = False
+    phase: str = "question"  # question, answer, scoring
+
+    def __post_init__(self):
+        if not self.turn_id:
+            self.turn_id = str(uuid.uuid4())
+
+
+@dataclass
 class Game:
     game_id: str
     game_name: str  # stored in lowercase
