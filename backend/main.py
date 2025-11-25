@@ -102,9 +102,35 @@ class ActionResponse(BaseModel):
 class TypingRequest(BaseModel):
     player_id: str
 
+class GameListItem(BaseModel):
+    game_name: str
+    game_id: str
+    player_count: int
+
 @app.get("/ping")
 def ping():
     return {"message": "Pong"}
+
+@app.get("/api/games", response_model=list[GameListItem])
+def list_waiting_games():
+    """List all games with status 'waiting'."""
+    try:
+        from game_store import get_all_waiting_games
+        waiting_games = get_all_waiting_games()
+        
+        # Sort alphabetically by game name
+        sorted_games = sorted(waiting_games, key=lambda g: g.game_name)
+        
+        return [
+            GameListItem(
+                game_name=game.game_name,
+                game_id=game.game_id,
+                player_count=len(game.players)
+            )
+            for game in sorted_games
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/api/games/create", response_model=CreateGameResponse)
 def create_game(request: CreateGameRequest):

@@ -61,3 +61,8 @@ def get_all_turns(game_id: str) -> List[Turn]:
     turn_ids = turns_by_game[game_id]
     return [turns[tid] for tid in turn_ids if tid in turns]
 
+
+def get_all_waiting_games() -> List[Game]:
+    """Get all games with status 'waiting'."""
+    return [game for game in games.values() if game.status == "waiting"]
+
