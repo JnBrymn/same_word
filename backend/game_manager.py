@@ -208,6 +208,7 @@ def submit_question(game_id: str, player_id: str, question: str) -> Tuple[bool, 
 def calculate_scores(turn: Turn, game: Game) -> Dict[str, int]:
     """
     Calculate scores for a turn based on matching answers.
+    Uses word similarity to group similar answers together.
     
     Returns:
         Dictionary mapping player_id -> points earned this turn
@@ -217,13 +218,9 @@ def calculate_scores(turn: Turn, game: Game) -> Dict[str, int]:
     if not turn.answers or len(turn.answers) == 0:
         return scores
     
-    # Group answers by word (normalized to lowercase)
-    word_groups: Dict[str, list[str]] = {}  # word -> list of player_ids
-    for player_id, word in turn.answers.items():
-        word_lower = word.lower().strip()
-        if word_lower not in word_groups:
-            word_groups[word_lower] = []
-        word_groups[word_lower].append(player_id)
+    # Group answers by similar words (using AI/similarity checking)
+    from word_similarity import group_similar_words
+    word_groups = group_similar_words(turn.answers)  # canonical_word -> list of player_ids
     
     # Check for dud question
     # Dud if: no matches (each word appears only once) OR all same word
@@ -239,7 +236,7 @@ def calculate_scores(turn: Turn, game: Game) -> Dict[str, int]:
         return scores
     
     # Calculate normal scores
-    for word, player_ids in word_groups.items():
+    for canonical_word, player_ids in word_groups.items():
         match_count = len(player_ids) - 1  # Exclude self
         if match_count > 0:
             for player_id in player_ids:

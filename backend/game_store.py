@@ -52,3 +52,12 @@ def save_turn(turn: Turn) -> None:
     if turn.turn_id not in turns_by_game[turn.game_id]:
         turns_by_game[turn.game_id].append(turn.turn_id)
 
+
+def get_all_turns(game_id: str) -> List[Turn]:
+    """Get all turns for a game in chronological order."""
+    if game_id not in turns_by_game:
+        return []
+    
+    turn_ids = turns_by_game[game_id]
+    return [turns[tid] for tid in turn_ids if tid in turns]
+

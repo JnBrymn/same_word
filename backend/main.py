@@ -70,6 +70,7 @@ class TurnInfo(BaseModel):
     is_complete: bool
     answers: Optional[Dict[str, str]] = None  # player_id -> word (only shown if phase is scoring or player has answered)
     scores: Optional[Dict[str, int]] = None  # player_id -> points (only shown if phase is scoring)
+    typing_players: Optional[Dict[str, float]] = None  # player_id -> timestamp of last typing activity
 
 class GameStateResponse(BaseModel):
     game_id: str
@@ -81,6 +82,7 @@ class GameStateResponse(BaseModel):
     current_turn_index: Optional[int] = None
     current_round: int = 0
     current_turn: Optional[TurnInfo] = None
+    all_turns: list[TurnInfo] = []  # All turns in chronological order
 
 class QuestionRequest(BaseModel):
     player_id: str
@@ -96,6 +98,9 @@ class StartTurnRequest(BaseModel):
 class ActionResponse(BaseModel):
     success: bool
     error: Optional[str] = None
+
+class TypingRequest(BaseModel):
+    player_id: str
 
 @app.get("/ping")
 def ping():
@@ -165,7 +170,7 @@ def join_game(request: JoinGameRequest):
 def get_game_state(game_id: str, player_id: Optional[str] = None):
     """Get current game state."""
     try:
-        from game_store import get_game, get_current_turn
+        from game_store import get_game, get_current_turn, get_all_turns
         game = get_game(game_id)
         
         if not game:
@@ -182,34 +187,54 @@ def get_game_state(game_id: str, player_id: Optional[str] = None):
             for player in game.players
         ]
         
-        # Get turn information
+        # Get all turns for the game
+        all_turns_list = get_all_turns(game_id)
+        all_turns_info = []
+        
+        for turn in all_turns_list:
+            # Determine what answers to show based on phase and player
+            answers_to_show = None
+            if turn.phase == "scoring" or turn.is_complete:
+                # Show all answers for completed turns
+                answers_to_show = turn.answers
+            elif turn.phase == "answer":
+                # During answer phase, show which players have answered (but not their words)
+                answers_to_show = {pid: "answered" for pid in turn.answers.keys()}
+            
+            scores_to_show = None
+            if turn.phase == "scoring" or turn.is_complete:
+                scores_to_show = turn.scores
+            
+            # Filter typing players to only show those who typed recently (within last 3 seconds)
+            import time
+            current_time = time.time()
+            active_typing = {
+                pid: ts for pid, ts in turn.typing_players.items()
+                if current_time - ts < 3.0
+            } if turn.typing_players else {}
+            
+            turn_info = TurnInfo(
+                turn_id=turn.turn_id,
+                questioner_id=turn.questioner_id,
+                question=turn.question,
+                phase=turn.phase,
+                is_complete=turn.is_complete,
+                answers=answers_to_show,
+                scores=scores_to_show,
+                typing_players=active_typing if active_typing else None
+            )
+            all_turns_info.append(turn_info)
+        
+        # Get current turn information (for backward compatibility)
         turn_info = None
         if game.current_turn_id:
             turn = get_current_turn(game_id)
             if turn:
-                # Determine what answers to show
-                answers_to_show = None
-                if turn.phase == "scoring" or turn.is_complete:
-                    # Show all answers
-                    answers_to_show = turn.answers
-                elif turn.phase == "answer" and player_id:
-                    # Show only if this player has answered
-                    if player_id in turn.answers:
-                        answers_to_show = {player_id: turn.answers[player_id]}
-                
-                scores_to_show = None
-                if turn.phase == "scoring" or turn.is_complete:
-                    scores_to_show = turn.scores
-                
-                turn_info = TurnInfo(
-                    turn_id=turn.turn_id,
-                    questioner_id=turn.questioner_id,
-                    question=turn.question,
-                    phase=turn.phase,
-                    is_complete=turn.is_complete,
-                    answers=answers_to_show,
-                    scores=scores_to_show
-                )
+                # Find it in all_turns_info
+                for t in all_turns_info:
+                    if t.turn_id == turn.turn_id:
+                        turn_info = t
+                        break
         
         return GameStateResponse(
             game_id=game.game_id,
@@ -220,7 +245,8 @@ def get_game_state(game_id: str, player_id: Optional[str] = None):
             rounds_per_player=game.rounds_per_player,
             current_turn_index=game.current_turn_index,
             current_round=game.current_round,
-            current_turn=turn_info
+            current_turn=turn_info,
+            all_turns=all_turns_info
         )
     except HTTPException:
         raise
@@ -278,6 +304,28 @@ def submit_answer_endpoint(game_id: str, request: AnswerRequest):
         
         if not success:
             return ActionResponse(success=False, error=error)
+        
+        return ActionResponse(success=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/api/games/{game_id}/typing", response_model=ActionResponse)
+def update_typing_endpoint(game_id: str, request: TypingRequest):
+    """Update typing indicator for a player."""
+    try:
+        from game_store import get_current_turn, save_turn
+        import time
+        
+        turn = get_current_turn(game_id)
+        if not turn:
+            return ActionResponse(success=False, error="No active turn")
+        
+        if turn.phase != "answer":
+            return ActionResponse(success=False, error="Not in answer phase")
+        
+        # Update typing timestamp for this player
+        turn.typing_players[request.player_id] = time.time()
+        save_turn(turn)
         
         return ActionResponse(success=True)
     except Exception as e:

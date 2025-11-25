@@ -25,6 +25,7 @@ class Turn:
     scores: dict[str, int] = field(default_factory=dict)  # player_id -> points
     is_complete: bool = False
     phase: str = "question"  # question, answer, scoring
+    typing_players: dict[str, float] = field(default_factory=dict)  # player_id -> timestamp of last typing activity
 
     def __post_init__(self):
         if not self.turn_id:

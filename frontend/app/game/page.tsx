@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import TurnHistory from './TurnHistory'
 
 interface Player {
   name: string
@@ -18,6 +19,7 @@ interface TurnInfo {
   is_complete: boolean
   answers: { [player_id: string]: string } | null
   scores: { [player_id: string]: number } | null
+  typing_players: { [player_id: string]: number } | null
 }
 
 interface GameState {
@@ -30,6 +32,7 @@ interface GameState {
   current_turn_index: number | null
   current_round: number
   current_turn: TurnInfo | null
+  all_turns: TurnInfo[]
 }
 
 function GameContent() {
@@ -43,6 +46,10 @@ function GameContent() {
   const [answer, setAnswer] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [previousScores, setPreviousScores] = useState<{ [player_id: string]: number }>({})
+  const [turnScoresBefore, setTurnScoresBefore] = useState<{ [turn_id: string]: { [player_id: string]: number } }>({})
+  const turnHistoryRef = useRef<HTMLDivElement>(null)
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
 
@@ -60,11 +67,56 @@ function GameContent() {
           throw new Error('Failed to fetch game state')
         }
         const data = await res.json()
+        
+        // Track scores before each turn completes
+        if (data.all_turns) {
+          // Initialize scores before for all turns that have scores
+          const newScoresBefore: { [turn_id: string]: { [player_id: string]: number } } = {}
+          
+          // Calculate scores before each turn by working backwards from current scores
+          let runningScores: { [player_id: string]: number } = {}
+          data.players.forEach((player: Player) => {
+            runningScores[player.player_id] = player.score
+          })
+          
+          // Go through turns in reverse order to calculate scores before each turn
+          for (let i = data.all_turns.length - 1; i >= 0; i--) {
+            const turn = data.all_turns[i]
+            if (turn.scores) {
+              // Store scores before this turn
+              newScoresBefore[turn.turn_id] = { ...runningScores }
+              // Subtract this turn's scores to get scores before this turn
+              data.players.forEach((player: Player) => {
+                const turnScore = turn.scores?.[player.player_id] || 0
+                runningScores[player.player_id] = runningScores[player.player_id] - turnScore
+              })
+            }
+          }
+          
+          setTurnScoresBefore(newScoresBefore)
+        }
+        
+        // Check if game just finished
+        const wasFinished = gameState?.status === 'finished'
+        const justFinished = data.status === 'finished' && !wasFinished
+        
         setGameState(data)
 
-        // Auto-redirect if game is finished
-        if (data.status === 'finished') {
-          // Stay on page to show final scores
+        // Trigger fireworks if game just finished
+        if (justFinished) {
+          triggerFireworks()
+        }
+        
+        // Auto-scroll to bottom when new turn appears or on initial load
+        if (data.all_turns) {
+          const shouldScroll = !gameState?.all_turns || data.all_turns.length > gameState.all_turns.length
+          if (shouldScroll) {
+            setTimeout(() => {
+              if (turnHistoryRef.current) {
+                turnHistoryRef.current.scrollTop = turnHistoryRef.current.scrollHeight
+              }
+            }, 100)
+          }
         }
       } catch (error) {
         console.error('Error fetching game state:', error)
@@ -77,8 +129,99 @@ function GameContent() {
     // Poll every 1.5 seconds
     const interval = setInterval(fetchGameState, 1500)
 
-    return () => clearInterval(interval)
-  }, [gameId, playerId, router, apiUrl])
+    return () => {
+      clearInterval(interval)
+      if (typingTimeout) {
+        clearTimeout(typingTimeout)
+      }
+    }
+  }, [gameId, playerId, router, apiUrl, gameState])
+
+  // Scroll to bottom on initial load
+  useEffect(() => {
+    if (gameState?.all_turns && turnHistoryRef.current) {
+      setTimeout(() => {
+        if (turnHistoryRef.current) {
+          turnHistoryRef.current.scrollTop = turnHistoryRef.current.scrollHeight
+        }
+      }, 200)
+    }
+  }, [gameState?.all_turns?.length])
+
+  const triggerFireworks = () => {
+    const container = document.getElementById('fireworks-container')
+    if (!container) return
+
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE']
+    const fireworkCount = 20
+
+    for (let i = 0; i < fireworkCount; i++) {
+      setTimeout(() => {
+        const firework = document.createElement('div')
+        firework.style.position = 'absolute'
+        firework.style.left = `${Math.random() * 100}%`
+        firework.style.top = `${Math.random() * 50}%`
+        firework.style.width = '4px'
+        firework.style.height = '4px'
+        firework.style.borderRadius = '50%'
+        firework.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
+        firework.style.pointerEvents = 'none'
+        firework.style.zIndex = '1001'
+        
+        container.appendChild(firework)
+
+        // Animate firework explosion
+        const particleCount = 30
+        const angleStep = (Math.PI * 2) / particleCount
+        
+        for (let j = 0; j < particleCount; j++) {
+          const particle = document.createElement('div')
+          particle.style.position = 'absolute'
+          particle.style.left = firework.style.left
+          particle.style.top = firework.style.top
+          particle.style.width = '3px'
+          particle.style.height = '3px'
+          particle.style.borderRadius = '50%'
+          particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
+          particle.style.pointerEvents = 'none'
+          particle.style.zIndex = '1001'
+          
+          container.appendChild(particle)
+          
+          const angle = angleStep * j
+          const velocity = 100 + Math.random() * 50
+          const vx = Math.cos(angle) * velocity
+          const vy = Math.sin(angle) * velocity
+          
+          let x = 0
+          let y = 0
+          const startTime = Date.now()
+          
+          const animate = () => {
+            const elapsed = (Date.now() - startTime) / 1000
+            x += vx * 0.016
+            y += vy * 0.016 + 50 * elapsed // gravity
+            
+            particle.style.transform = `translate(${x}px, ${y}px)`
+            particle.style.opacity = `${Math.max(0, 1 - elapsed / 2)}`
+            
+            if (elapsed < 2) {
+              requestAnimationFrame(animate)
+            } else {
+              particle.remove()
+            }
+          }
+          
+          requestAnimationFrame(animate)
+        }
+        
+        // Remove firework after animation
+        setTimeout(() => {
+          firework.remove()
+        }, 2000)
+      }, i * 100)
+    }
+  }
 
   const handleSubmitQuestion = async () => {
     if (!gameId || !playerId) return
@@ -121,8 +264,52 @@ function GameContent() {
     }
   }
 
+  const sendTypingIndicator = async () => {
+    if (!gameId || !playerId) return
+    
+    try {
+      await fetch(`${apiUrl}/games/${gameId}/typing`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          player_id: playerId,
+        }),
+      })
+    } catch (error) {
+      // Silently fail - typing indicator is not critical
+      console.error('Error sending typing indicator:', error)
+    }
+  }
+
+  const handleAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAnswer(e.target.value)
+    
+    // Clear existing timeout
+    if (typingTimeout) {
+      clearTimeout(typingTimeout)
+    }
+    
+    // Send typing indicator immediately
+    sendTypingIndicator()
+    
+    // Set timeout to send again after 1 second if still typing
+    const timeout = setTimeout(() => {
+      sendTypingIndicator()
+    }, 1000)
+    
+    setTypingTimeout(timeout)
+  }
+
   const handleSubmitAnswer = async () => {
     if (!gameId || !playerId) return
+
+    // Clear typing timeout
+    if (typingTimeout) {
+      clearTimeout(typingTimeout)
+      setTypingTimeout(null)
+    }
 
     setError('')
     const answerTrimmed = answer.trim()
@@ -214,8 +401,21 @@ function GameContent() {
         padding: '50px', 
         fontFamily: 'Arial, sans-serif',
         maxWidth: '800px',
-        margin: '0 auto'
+        margin: '0 auto',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
+        {/* Fireworks animation container */}
+        <div id="fireworks-container" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+          zIndex: 1000
+        }}></div>
+        
         <h1 style={{ marginBottom: '10px' }}>Game Over!</h1>
         <h2 style={{ marginBottom: '30px', color: '#666', fontWeight: 'normal' }}>
           Game: {gameState.game_name}
@@ -322,21 +522,39 @@ function GameContent() {
       }}>
         <h3 style={{ marginBottom: '15px' }}>Scores</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-          {gameState.players.map((player) => (
-            <div
-              key={player.player_id}
-              style={{
-                padding: '10px',
-                backgroundColor: 'white',
-                borderRadius: '4px',
-                textAlign: 'center',
-                border: player.player_id === playerId ? '2px solid #2196F3' : 'none'
-              }}
-            >
-              <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{player.name}</div>
-              <div style={{ fontSize: '20px' }}>{player.score}</div>
-            </div>
-          ))}
+          {gameState.players.map((player) => {
+            // Calculate delta if we're in scoring phase and have previous scores
+            const showDelta = (phase === 'scoring' || currentTurn?.is_complete) && 
+                             previousScores[player.player_id] !== undefined &&
+                             currentTurn?.scores
+            const delta = showDelta ? (player.score - previousScores[player.player_id]) : null
+            
+            return (
+              <div
+                key={player.player_id}
+                style={{
+                  padding: '10px',
+                  backgroundColor: 'white',
+                  borderRadius: '4px',
+                  textAlign: 'center',
+                  border: player.player_id === playerId ? '2px solid #2196F3' : 'none'
+                }}
+              >
+                <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{player.name}</div>
+                {delta !== null && delta !== 0 && (
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    color: delta > 0 ? '#4CAF50' : '#c62828',
+                    marginBottom: '4px'
+                  }}>
+                    {delta > 0 ? '+' : ''}{delta}
+                  </div>
+                )}
+                <div style={{ fontSize: '20px' }}>{player.score}</div>
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -395,8 +613,53 @@ function GameContent() {
         </div>
       )}
 
-      {/* Answer Phase */}
-      {currentTurn && phase === 'answer' && currentTurn.question && (
+      {/* Turn History */}
+      <div style={{
+        backgroundColor: '#f9f9f9',
+        padding: '20px',
+        borderRadius: '8px',
+        marginBottom: '30px',
+        maxHeight: '500px',
+        overflowY: 'auto',
+        border: '1px solid #e0e0e0',
+        scrollBehavior: 'smooth'
+      }} ref={turnHistoryRef}>
+        <h3 style={{ 
+          marginBottom: '15px', 
+          position: 'sticky', 
+          top: 0, 
+          backgroundColor: '#f9f9f9', 
+          zIndex: 10,
+          paddingBottom: '10px',
+          borderBottom: '2px solid #e0e0e0'
+        }}>
+          Turn History
+        </h3>
+        {gameState.all_turns && gameState.all_turns.length > 0 ? (
+          gameState.all_turns.map((turn, index) => {
+            const isCurrentTurn = turn.turn_id === currentTurn?.turn_id
+            const scoresBefore = turnScoresBefore[turn.turn_id] || {}
+            
+            return (
+              <TurnHistory
+                key={turn.turn_id}
+                turn={turn}
+                players={gameState.players}
+                currentPlayerId={playerId}
+                previousScores={scoresBefore}
+                isCurrentTurn={isCurrentTurn}
+              />
+            )
+          })
+        ) : (
+          <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
+            No turns yet. Waiting for the first question...
+          </div>
+        )}
+      </div>
+
+      {/* Answer Input - Only show for current turn in answer phase */}
+      {currentTurn && phase === 'answer' && currentTurn.question && !hasAnswered && (
         <div style={{
           backgroundColor: '#fff3e0',
           padding: '30px',
@@ -404,156 +667,74 @@ function GameContent() {
           marginBottom: '30px'
         }}>
           <h3 style={{ marginBottom: '15px', textAlign: 'center' }}>
-            Question: <span style={{ fontStyle: 'italic' }}>"{currentTurn.question}"</span>
+            Enter your answer:
           </h3>
-          <p style={{ textAlign: 'center', marginBottom: '20px', color: '#666' }}>
-            Asked by: {gameState.players.find(p => p.player_id === currentTurn.questioner_id)?.name}
-          </p>
-
-          {hasAnswered ? (
-            <div style={{
-              padding: '15px',
-              backgroundColor: 'white',
+          <div style={{ marginBottom: '15px' }}>
+            <input
+              type="text"
+              value={answer}
+              onChange={handleAnswerChange}
+              onKeyPress={(e) => e.key === 'Enter' && !loading && handleSubmitAnswer()}
+              placeholder="Enter a single word answer..."
+              disabled={loading}
+              style={{
+                padding: '12px',
+                fontSize: '16px',
+                width: '100%',
+                boxSizing: 'border-box',
+                border: '1px solid #ccc',
+                borderRadius: '4px'
+              }}
+            />
+          </div>
+          <button
+            onClick={handleSubmitAnswer}
+            disabled={loading || !answer.trim()}
+            style={{
+              padding: '12px 24px',
+              fontSize: '16px',
+              cursor: (loading || !answer.trim()) ? 'not-allowed' : 'pointer',
+              backgroundColor: (loading || !answer.trim()) ? '#ccc' : '#FF9800',
+              color: 'white',
+              border: 'none',
               borderRadius: '4px',
-              textAlign: 'center'
-            }}>
-              <p style={{ margin: 0, fontSize: '18px' }}>
-                You answered: <strong>{myAnswer}</strong>
-              </p>
-              <p style={{ margin: '10px 0 0 0', color: '#666' }}>
-                Waiting for other players... ({answeredCount} / {totalPlayers} answered)
-              </p>
-            </div>
-          ) : (
-            <>
-              <div style={{ marginBottom: '15px' }}>
-                <input
-                  type="text"
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !loading && handleSubmitAnswer()}
-                  placeholder="Enter a single word answer..."
-                  disabled={loading}
-                  style={{
-                    padding: '12px',
-                    fontSize: '16px',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px'
-                  }}
-                />
-              </div>
-              <button
-                onClick={handleSubmitAnswer}
-                disabled={loading || !answer.trim()}
-                style={{
-                  padding: '12px 24px',
-                  fontSize: '16px',
-                  cursor: (loading || !answer.trim()) ? 'not-allowed' : 'pointer',
-                  backgroundColor: (loading || !answer.trim()) ? '#ccc' : '#FF9800',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontWeight: 'bold',
-                  width: '100%'
-                }}
-              >
-                {loading ? 'Submitting...' : 'Submit Answer'}
-              </button>
-              <p style={{ marginTop: '10px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
-                {answeredCount} / {totalPlayers} players have answered
-              </p>
-            </>
-          )}
+              fontWeight: 'bold',
+              width: '100%'
+            }}
+          >
+            {loading ? 'Submitting...' : 'Submit Answer'}
+          </button>
         </div>
       )}
 
-      {/* Scoring Phase */}
-      {currentTurn && (phase === 'scoring' || currentTurn.is_complete) && currentTurn.answers && currentTurn.scores && (
+      {/* Next Turn Button - Only show when current turn is complete */}
+      {currentTurn && (phase === 'scoring' || currentTurn.is_complete) && gameState.status === 'playing' && (
         <div style={{
           backgroundColor: '#e8f5e9',
-          padding: '30px',
+          padding: '20px',
           borderRadius: '8px',
-          marginBottom: '30px'
+          marginBottom: '30px',
+          textAlign: 'center'
         }}>
-          <h3 style={{ marginBottom: '15px', textAlign: 'center' }}>
-            Question: <span style={{ fontStyle: 'italic' }}>"{currentTurn.question}"</span>
-          </h3>
-
-          {/* Group answers by word */}
-          <div style={{ marginBottom: '20px' }}>
-            <h4 style={{ marginBottom: '10px' }}>Answers:</h4>
-            {Object.entries(currentTurn.answers).map(([pid, word]) => {
-              const player = gameState.players.find(p => p.player_id === pid)
-              const score = currentTurn.scores?.[pid] ?? 0
-              return (
-                <div
-                  key={pid}
-                  style={{
-                    padding: '10px',
-                    marginBottom: '8px',
-                    backgroundColor: 'white',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <span>
-                    <strong>{player?.name}</strong>: {word}
-                  </span>
-                  <span style={{
-                    fontWeight: 'bold',
-                    color: score > 0 ? '#4CAF50' : score < 0 ? '#c62828' : '#666'
-                  }}>
-                    {score > 0 ? '+' : ''}{score} points
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-
-          <div style={{
-            padding: '15px',
-            backgroundColor: 'white',
-            borderRadius: '4px',
-            textAlign: 'center',
-            marginBottom: '20px'
-          }}>
-            <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
-              Turn Complete!
-            </p>
-            {currentTurn.scores && currentTurn.scores[playerId || ''] !== undefined && (
-              <p style={{ margin: '10px 0 0 0', fontSize: '16px' }}>
-                You earned: <strong style={{
-                  color: ((currentTurn.scores[playerId || ''] ?? 0) > 0) ? '#4CAF50' : ((currentTurn.scores[playerId || ''] ?? 0) < 0) ? '#c62828' : '#666'
-                }}>
-                  {(currentTurn.scores[playerId || ''] ?? 0) > 0 ? '+' : ''}{currentTurn.scores[playerId || '']} points
-                </strong>
-              </p>
-            )}
-          </div>
-
-          {gameState.status === 'playing' && (
-            <button
-              onClick={handleStartNextTurn}
-              disabled={loading}
-              style={{
-                padding: '12px 24px',
-                fontSize: '16px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                backgroundColor: loading ? '#ccc' : '#4CAF50',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontWeight: 'bold',
-                width: '100%'
-              }}
-            >
-              {loading ? 'Starting...' : 'Next Turn'}
-            </button>
-          )}
+          <p style={{ marginBottom: '15px', fontSize: '16px', fontWeight: 'bold' }}>
+            Turn Complete!
+          </p>
+          <button
+            onClick={handleStartNextTurn}
+            disabled={loading}
+            style={{
+              padding: '12px 24px',
+              fontSize: '16px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              backgroundColor: loading ? '#ccc' : '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              fontWeight: 'bold'
+            }}
+          >
+            {loading ? 'Starting...' : 'Next Turn'}
+          </button>
         </div>
       )}
     </main>
