@@ -154,6 +154,8 @@ def create_game(request: CreateGameRequest):
             player_id=player_id,
             success=True
         )
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -187,6 +189,8 @@ def join_game(request: JoinGameRequest):
             player_id=player_id,
             success=True
         )
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
