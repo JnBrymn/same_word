@@ -73,11 +73,17 @@ Players can join an existing game or create a new one.
 --- 
 
 # Next Steps
-- Make sure we can see everyone's answer.
-  - when people answer, show that they have answered but blank out their answer under their name
 - When someone is typing, we indicate it.
 - It's annoying to be wrong just because you spelled it differently
-- When people are playing it says "1/N have answered" but that never updates
-- use AI to figure out if the answers are "close enough"
-- when the scoring is calculated, show the deltas as green and red above the score
-- final score fireworks
+   - use AI to figure out if the answers are "close enough"
+- If group size is too large, the UI gets crowded
+- With too many players, rounds may be too long; may need to randomly select players to ask questions - though the scoring isn't quite fair in that case
+- Game creator can share invite link with others
+- Show when a user is typing (typing indicators)
+- Add a time limit for answers and/or rounds
+- Option for the game to automatically ask questions (instead of players)
+- Option for the game to use multiple choice for answers
+- After a game is finished, can you use the name again?
+- Give the game creator more configurations (like auto ask questions, or provide multiple-choice answers)
+- When creator makes game, make it public or private - if private, you can join by link or by typing in the name of the game
+- Make "open" games that anyone can join
