@@ -98,16 +98,7 @@ function GameContent() {
           setTurnScoresBefore(newScoresBefore)
         }
         
-        // Check if game just finished
-        const wasFinished = gameState?.status === 'finished'
-        const justFinished = data.status === 'finished' && !wasFinished
-        
         setGameState(data)
-
-        // Trigger fireworks if game just finished
-        if (justFinished) {
-          triggerFireworks()
-        }
         
         // Auto-scroll to top when new turn appears
         if (data.all_turns) {
@@ -147,81 +138,6 @@ function GameContent() {
       }, 200)
     }
   }, [gameState?.all_turns?.length])
-
-  const triggerFireworks = () => {
-    const container = document.getElementById('fireworks-container')
-    if (!container) return
-
-    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE']
-    const fireworkCount = 20
-
-    for (let i = 0; i < fireworkCount; i++) {
-      setTimeout(() => {
-        const firework = document.createElement('div')
-        firework.style.position = 'absolute'
-        firework.style.left = `${Math.random() * 100}%`
-        firework.style.top = `${Math.random() * 50}%`
-        firework.style.width = '4px'
-        firework.style.height = '4px'
-        firework.style.borderRadius = '50%'
-        firework.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-        firework.style.pointerEvents = 'none'
-        firework.style.zIndex = '1001'
-        
-        container.appendChild(firework)
-
-        // Animate firework explosion
-        const particleCount = 30
-        const angleStep = (Math.PI * 2) / particleCount
-        
-        for (let j = 0; j < particleCount; j++) {
-          const particle = document.createElement('div')
-          particle.style.position = 'absolute'
-          particle.style.left = firework.style.left
-          particle.style.top = firework.style.top
-          particle.style.width = '3px'
-          particle.style.height = '3px'
-          particle.style.borderRadius = '50%'
-          particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-          particle.style.pointerEvents = 'none'
-          particle.style.zIndex = '1001'
-          
-          container.appendChild(particle)
-          
-          const angle = angleStep * j
-          const velocity = 100 + Math.random() * 50
-          const vx = Math.cos(angle) * velocity
-          const vy = Math.sin(angle) * velocity
-          
-          let x = 0
-          let y = 0
-          const startTime = Date.now()
-          
-          const animate = () => {
-            const elapsed = (Date.now() - startTime) / 1000
-            x += vx * 0.016
-            y += vy * 0.016 + 50 * elapsed // gravity
-            
-            particle.style.transform = `translate(${x}px, ${y}px)`
-            particle.style.opacity = `${Math.max(0, 1 - elapsed / 2)}`
-            
-            if (elapsed < 2) {
-              requestAnimationFrame(animate)
-            } else {
-              particle.remove()
-            }
-          }
-          
-          requestAnimationFrame(animate)
-        }
-        
-        // Remove firework after animation
-        setTimeout(() => {
-          firework.remove()
-        }, 2000)
-      }, i * 100)
-    }
-  }
 
   const handleSubmitQuestion = async () => {
     if (!gameId || !playerId) return
@@ -402,21 +318,8 @@ function GameContent() {
         padding: '50px', 
         fontFamily: 'Arial, sans-serif',
         maxWidth: '800px',
-        margin: '0 auto',
-        position: 'relative',
-        overflow: 'hidden'
+        margin: '0 auto'
       }}>
-        {/* Fireworks animation container */}
-        <div id="fireworks-container" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-          zIndex: 1000
-        }}></div>
-        
         <h1 style={{ marginBottom: '10px' }}>Game Over!</h1>
         <h2 style={{ marginBottom: '30px', color: '#666', fontWeight: 'normal' }}>
           Game: {gameState.game_name}
