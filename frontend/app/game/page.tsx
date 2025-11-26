@@ -139,11 +139,12 @@ function GameContent() {
     }
   }, [gameState?.all_turns?.length])
 
-  const handleSubmitQuestion = async () => {
+  const handleSubmitQuestion = async (questionText?: string) => {
     if (!gameId || !playerId) return
 
+    const questionToSubmit = questionText !== undefined ? questionText : question
     setError('')
-    if (!question.trim()) {
+    if (!questionToSubmit.trim()) {
       setError('Please enter a question')
       return
     }
@@ -157,7 +158,7 @@ function GameContent() {
         },
         body: JSON.stringify({
           player_id: playerId,
-          question: question.trim(),
+          question: questionToSubmit.trim(),
         }),
       })
 
@@ -218,7 +219,7 @@ function GameContent() {
     setTypingTimeout(timeout)
   }
 
-  const handleSubmitAnswer = async () => {
+  const handleSubmitAnswer = async (answerText?: string) => {
     if (!gameId || !playerId) return
 
     // Clear typing timeout
@@ -227,8 +228,9 @@ function GameContent() {
       setTypingTimeout(null)
     }
 
+    const answerToSubmit = answerText !== undefined ? answerText : answer
     setError('')
-    const answerTrimmed = answer.trim()
+    const answerTrimmed = answerToSubmit.trim()
     if (!answerTrimmed) {
       setError('Please enter an answer')
       return
@@ -405,21 +407,29 @@ function GameContent() {
 
   // Get current questioner
   const currentQuestioner = gameState.current_turn_index !== null 
+    && gameState.current_turn_index >= 0 
+    && gameState.current_turn_index < gameState.players.length
     ? gameState.players[gameState.current_turn_index]
     : null
 
   const isMyTurn = currentQuestioner?.player_id === playerId
   const currentTurn = gameState.current_turn
   const phase = currentTurn?.phase || 'question'
-  const hasAnswered = !!(currentTurn?.answers && playerId && playerId in currentTurn.answers)
-  const myAnswer = hasAnswered && currentTurn.answers ? currentTurn.answers[playerId] : null
+  const currentTurnHasAnswered = !!(currentTurn?.answers && playerId && currentTurn.answers && typeof currentTurn.answers === 'object' && playerId in currentTurn.answers)
+  const myAnswer = currentTurnHasAnswered && currentTurn?.answers && typeof currentTurn.answers === 'object' ? currentTurn.answers[playerId] : null
 
   // Count how many players have answered
-  const answeredCount = currentTurn?.answers ? Object.keys(currentTurn.answers).length : 0
-  const totalPlayers = gameState.players.length
+  const answeredCount = currentTurn?.answers && typeof currentTurn.answers === 'object' ? Object.keys(currentTurn.answers).length : 0
+  const totalPlayers = gameState.players?.length || 0
 
   // Reverse turns to show newest first
   const reversedTurns = gameState.all_turns ? [...gameState.all_turns].reverse() : []
+  
+  // Include current turn if it exists and isn't already in all_turns
+  const turnsToRender = [...reversedTurns]
+  if (currentTurn && !reversedTurns.some(t => t.turn_id === currentTurn.turn_id)) {
+    turnsToRender.unshift(currentTurn)
+  }
 
   return (
     <main ref={mainRef} style={{ 
@@ -455,9 +465,10 @@ function GameContent() {
       )}
 
       {/* All Turns - Newest at top */}
-      {reversedTurns.map((turn) => {
+      {turnsToRender.map((turn) => {
         const isCurrentTurnItem = turn.turn_id === currentTurn?.turn_id
         const scoresBefore = turnScoresBefore[turn.turn_id] || {}
+        const turnHasAnswered = !!(turn.answers && playerId && turn.answers && typeof turn.answers === 'object' && playerId in turn.answers)
         
         return (
           <Turn
@@ -470,7 +481,7 @@ function GameContent() {
             onAnswerSubmit={handleSubmitAnswer}
             answer={answer}
             onAnswerChange={setAnswer}
-            hasAnswered={hasAnswered}
+            hasAnswered={turnHasAnswered}
             loading={loading}
             onNextTurn={gameState.status === 'playing' ? handleStartNextTurn : undefined}
           />

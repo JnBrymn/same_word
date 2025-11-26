@@ -79,7 +79,7 @@ export default function Turn({
                 type="text"
                 value={question}
                 onChange={(e) => onQuestionChange?.(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !loading && question.trim() && onQuestionSubmit?.(question.trim())}
+                onKeyPress={(e) => e.key === 'Enter' && !loading && onQuestionSubmit?.(question)}
                 placeholder="Enter your question..."
                 disabled={loading}
                 style={{
@@ -93,12 +93,12 @@ export default function Turn({
               />
             </div>
             <button
-              onClick={() => question.trim() && onQuestionSubmit?.(question.trim())}
-              disabled={loading || !question.trim()}
+              onClick={() => !loading && onQuestionSubmit?.(question)}
+              disabled={loading}
               style={{
                 padding: '10px 20px',
                 fontSize: '14px',
-                cursor: (loading || !question.trim()) ? 'not-allowed' : 'pointer',
+                cursor: loading ? 'not-allowed' : 'pointer',
                 backgroundColor: (loading || !question.trim()) ? '#ccc' : '#4CAF50',
                 color: 'white',
                 border: 'none',
@@ -123,7 +123,7 @@ export default function Turn({
 
   if (!turn) return null
   const answeredCount = turn.answers ? Object.keys(turn.answers).length : 0
-  const totalPlayers = players.length
+  const totalPlayers = players?.length || 0
   const allAnswered = answeredCount === totalPlayers
   const showAnswers = turn.phase === 'scoring' || turn.is_complete || allAnswered
 
@@ -156,7 +156,7 @@ export default function Turn({
       <div style={{ marginBottom: '15px' }}>
         <h5 style={{ marginBottom: '10px', fontSize: '14px', color: '#666' }}>Answers:</h5>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {players.map((player) => {
+          {(players || []).map((player) => {
             const hasAnswered = !!(turn.answers && player.player_id in turn.answers)
             const answer = turn.answers && player.player_id in turn.answers 
               ? turn.answers[player.player_id] 
@@ -215,8 +215,8 @@ export default function Turn({
               type="text"
               value={answer}
               onChange={(e) => onAnswerChange?.(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && !loading && answer.trim() && onAnswerSubmit(answer.trim())}
-              placeholder="Enter a single word answer..."
+              onKeyPress={(e) => e.key === 'Enter' && !loading && onAnswerSubmit?.(answer)}
+              placeholder="Enter a single word answer"
               disabled={loading}
               style={{
                 padding: '10px',
@@ -229,12 +229,12 @@ export default function Turn({
             />
           </div>
           <button
-            onClick={() => answer.trim() && onAnswerSubmit(answer.trim())}
-            disabled={loading || !answer.trim()}
+            onClick={() => !loading && onAnswerSubmit?.(answer)}
+            disabled={loading}
             style={{
               padding: '10px 20px',
               fontSize: '14px',
-              cursor: (loading || !answer.trim()) ? 'not-allowed' : 'pointer',
+              cursor: loading ? 'not-allowed' : 'pointer',
               backgroundColor: (loading || !answer.trim()) ? '#ccc' : '#FF9800',
               color: 'white',
               border: 'none',

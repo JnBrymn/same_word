@@ -10,6 +10,10 @@ interface ScoreBoardProps {
 }
 
 export default function ScoreBoard({ players, currentPlayerId }: ScoreBoardProps) {
+  if (!players || !Array.isArray(players)) {
+    return null
+  }
+  
   return (
     <div style={{
       backgroundColor: '#f5f5f5',

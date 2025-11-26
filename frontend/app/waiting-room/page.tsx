@@ -148,10 +148,10 @@ function WaitingRoomContent() {
       }}>
         <div style={{ marginBottom: '20px' }}>
           <h3 style={{ marginBottom: '10px' }}>
-            Players ({gameState.players.length})
+            Players ({gameState.players?.length || 0})
           </h3>
           <ul style={{ listStyle: 'none', padding: 0 }}>
-            {gameState.players.map((player) => (
+            {(gameState.players || []).map((player) => (
               <PlayerCard
                 key={player.player_id}
                 player={player}
@@ -171,10 +171,11 @@ function WaitingRoomContent() {
         }}>
           <h3 style={{ marginBottom: '15px' }}>Start Game</h3>
           <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+            <label htmlFor="rounds-input" style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
               Number of rounds per player:
             </label>
             <input
+              id="rounds-input"
               type="number"
               min="1"
               value={rounds}
@@ -190,12 +191,12 @@ function WaitingRoomContent() {
           </div>
           <button
             onClick={handleStartGame}
-            disabled={loading || gameState.players.length < 3}
+            disabled={loading || !gameState.players || gameState.players.length < 3}
             style={{
               padding: '12px 24px',
               fontSize: '16px',
-              cursor: (loading || gameState.players.length < 3) ? 'not-allowed' : 'pointer',
-              backgroundColor: gameState.players.length < 3 ? '#ccc' : '#4CAF50',
+              cursor: (loading || !gameState.players || gameState.players.length < 3) ? 'not-allowed' : 'pointer',
+              backgroundColor: (!gameState.players || gameState.players.length < 3) ? '#ccc' : '#4CAF50',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
@@ -203,7 +204,7 @@ function WaitingRoomContent() {
               width: '100%'
             }}
           >
-            {gameState.players.length < 3 
+            {!gameState.players || gameState.players.length < 3 
               ? 'Waiting for more players...' 
               : loading 
                 ? 'Starting...' 

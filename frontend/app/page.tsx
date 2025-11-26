@@ -176,7 +176,7 @@ export default function Home() {
           <input
             type="text"
             value={createGameName}
-            onChange={(e) => setCreateGameName(e.target.value.toLowerCase())}
+            onChange={(e) => setCreateGameName(e.target.value)}
             placeholder="Enter game name (lowercase)"
             style={{
               padding: '10px',
@@ -234,14 +234,14 @@ export default function Home() {
             {availableGames.map((game) => (
               <button
                 key={game.game_id}
-                onClick={() => handleJoinGame(game.game_name)}
-                disabled={loading || !playerName.trim()}
+                onClick={() => !loading && handleJoinGame(game.game_name)}
+                disabled={loading}
                 style={{
                   width: '100%',
                   padding: '12px',
                   fontSize: '16px',
                   textAlign: 'left',
-                  cursor: loading || !playerName.trim() ? 'not-allowed' : 'pointer',
+                  cursor: loading ? 'not-allowed' : 'pointer',
                   backgroundColor: 'white',
                   color: '#333',
                   border: 'none',
@@ -249,10 +249,11 @@ export default function Home() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  transition: 'background-color 0.2s'
+                  transition: 'background-color 0.2s',
+                  opacity: !playerName.trim() ? 0.6 : 1
                 }}
                 onMouseEnter={(e) => {
-                  if (!loading && playerName.trim()) {
+                  if (!loading) {
                     e.currentTarget.style.backgroundColor = '#f0f0f0'
                   }
                 }}
