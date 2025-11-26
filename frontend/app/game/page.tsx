@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Turn from './Turn'
+import ErrorMessage from '@/components/ErrorMessage'
+import ScoreBoard from '@/components/ScoreBoard'
 
 interface Player {
   name: string
@@ -528,46 +530,9 @@ function GameContent() {
         Game: {gameState.game_name} | Round {gameState.current_round + 1} / {gameState.rounds_per_player}
       </h2>
 
-      {error && (
-        <div style={{
-          padding: '10px',
-          backgroundColor: '#ffebee',
-          color: '#c62828',
-          borderRadius: '4px',
-          marginBottom: '20px'
-        }}>
-          {error}
-        </div>
-      )}
+      {error && <ErrorMessage message={error} />}
 
-      {/* Scores - At the very top */}
-      <div style={{
-        backgroundColor: '#f5f5f5',
-        padding: '20px',
-        borderRadius: '8px',
-        marginBottom: '30px'
-      }}>
-        <h3 style={{ marginBottom: '15px' }}>Scores</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-          {gameState.players.map((player) => {
-            return (
-              <div
-                key={player.player_id}
-                style={{
-                  padding: '10px',
-                  backgroundColor: 'white',
-                  borderRadius: '4px',
-                  textAlign: 'center',
-                  border: player.player_id === playerId ? '2px solid #2196F3' : 'none'
-                }}
-              >
-                <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{player.name}</div>
-                <div style={{ fontSize: '20px' }}>{player.score}</div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+      <ScoreBoard players={gameState.players} currentPlayerId={playerId} />
 
       {/* Question Phase - Show at top if no current turn */}
       {(!currentTurn || phase === 'question') && (

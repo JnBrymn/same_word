@@ -87,3 +87,5 @@ Players can join an existing game or create a new one.
 - Give the game creator more configurations (like auto ask questions, or provide multiple-choice answers)
 - When creator makes game, make it public or private - if private, you can join by link or by typing in the name of the game
 - Make "open" games that anyone can join
+- Load test it and see how many people it can support
+- answers can be multiple words

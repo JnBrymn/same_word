@@ -53,7 +53,6 @@ The game consists of multiple turns, with each player taking turns asking questi
 - Players take turns asking questions in the same order
 - The game ends after all players have asked questions X times (where X is chosen at the start)
 - The player(s) with the highest score wins!
-- Celebrate with fireworks animation 🎆
 - Review the complete game history with all questions, answers, and scores
 
 ---

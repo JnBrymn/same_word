@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import PlayerCard from '@/components/PlayerCard'
 
 interface Player {
   name: string
@@ -156,62 +157,27 @@ export default function Turn({
         <h5 style={{ marginBottom: '10px', fontSize: '14px', color: '#666' }}>Answers:</h5>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {players.map((player) => {
-            const hasAnswered = turn.answers && player.player_id in turn.answers
+            const hasAnswered = !!(turn.answers && player.player_id in turn.answers)
             const answer = turn.answers && player.player_id in turn.answers 
               ? turn.answers[player.player_id] 
               : null
-            const isTyping = turn.typing_players && player.player_id in turn.typing_players && !hasAnswered
-            const score = turn.scores && player.player_id in turn.scores 
+            const isTyping = !!(turn.typing_players && player.player_id in turn.typing_players && !hasAnswered)
+            const turnScore = turn.scores && player.player_id in turn.scores 
               ? turn.scores[player.player_id] 
               : null
-            const previousScore = previousScores[player.player_id] ?? 0
-            const delta = score !== null ? score : null
 
             return (
-              <div
+              <PlayerCard
                 key={player.player_id}
-                style={{
-                  padding: '10px',
-                  backgroundColor: 'white',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  border: player.player_id === currentPlayerId ? '2px solid #2196F3' : '1px solid #e0e0e0'
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                    {player.name}
-                  </div>
-                  <div style={{ 
-                    color: hasAnswered ? '#4CAF50' : isTyping ? '#FF9800' : '#999',
-                    fontStyle: hasAnswered ? 'normal' : 'italic',
-                    fontSize: '14px'
-                  }}>
-                    {hasAnswered && showAnswers && answer && answer !== 'answered' ? (
-                      <strong>{answer}</strong>
-                    ) : hasAnswered ? (
-                      '✓ Answered'
-                    ) : isTyping ? (
-                      '✎ Typing...'
-                    ) : (
-                      'Waiting...'
-                    )}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right', minWidth: '80px' }}>
-                  {turn.scores && turn.scores[player.player_id] !== undefined ? (
-                    <div style={{
-                      fontSize: '20px',
-                      fontWeight: 'bold',
-                      color: turn.scores[player.player_id] > 0 ? '#4CAF50' : turn.scores[player.player_id] < 0 ? '#c62828' : '#666'
-                    }}>
-                      {turn.scores[player.player_id] > 0 ? '+' : ''}{turn.scores[player.player_id]}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+                player={player}
+                currentPlayerId={currentPlayerId}
+                variant="answer-status"
+                answer={answer}
+                hasAnswered={hasAnswered}
+                isTyping={isTyping || undefined}
+                showAnswers={showAnswers || undefined}
+                turnScore={turnScore ?? undefined}
+              />
             )
           })}
         </div>
